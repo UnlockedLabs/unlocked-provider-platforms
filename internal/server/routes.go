@@ -1,0 +1,70 @@
+package server
+
+import (
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/json"
+	"net/http"
+	"strings"
+
+	"github.com/UnlockedLabs/unlocked-contracts/identity"
+	"github.com/UnlockedLabs/unlocked-contracts/providerplatforms"
+	"github.com/UnlockedLabs/unlocked-provider-platforms/internal/module"
+)
+
+const (
+	// TokenHeader carries the shared service token, the same header the
+	// contracts' clients send.
+	TokenHeader = "X-Service-Token"
+	// ClaimsHeader carries the caller's identity.Claims as JSON. Core sets it
+	// when it proxies a request here, after its own session, role, feature and
+	// facility checks.
+	ClaimsHeader = "X-Identity-Claims"
+)
+
+// Routes mounts the module's routes. Core is the public edge and checks who
+// may call each route, so a route is guarded only by the service token, and
+// the caller's claims come from core's header.
+func Routes(token string, routes []module.Route) Mount {
+	return func(mux *http.ServeMux, prefix string) {
+		for _, rt := range routes {
+			method, path, _ := strings.Cut(rt.Pattern, " ")
+			mux.Handle(method+" "+prefix+path, requireToken(token, withClaims(rt.Handler)))
+		}
+	}
+}
+
+// Internal mounts the contracts' Handler, which answers core's typed calls
+// under /internal/v1/provider-platforms/. The Handler checks the token itself.
+func Internal(token string, pp providerplatforms.ProviderPlatforms) Mount {
+	return func(mux *http.ServeMux, prefix string) {
+		mux.Handle(prefix+"/internal/v1/provider-platforms/", http.StripPrefix(prefix, providerplatforms.NewHandler(pp, token)))
+	}
+}
+
+// requireToken serves next only to requests that carry token. An empty token
+// rejects every request, so a service started without one fails closed.
+func requireToken(token string, next http.Handler) http.Handler {
+	want := sha256.Sum256([]byte(token))
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got := sha256.Sum256([]byte(r.Header.Get(TokenHeader)))
+		if token == "" || subtle.ConstantTimeCompare(got[:], want[:]) != 1 {
+			http.Error(w, "invalid service token", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// withClaims puts the caller's claims from ClaimsHeader on the request's
+// context, and answers 401 when there are none.
+func withClaims(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var c identity.Claims
+		if err := json.Unmarshal([]byte(r.Header.Get(ClaimsHeader)), &c); err != nil {
+			http.Error(w, "missing caller claims", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(identity.NewContext(r.Context(), &c)))
+	})
+}
