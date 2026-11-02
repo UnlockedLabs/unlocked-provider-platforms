@@ -187,7 +187,7 @@ func (s *store) getMappedUsers(args *queryContext, providerID int) ([]user, erro
 	if err := tx.Count(&args.Total).Error; err != nil {
 		return nil, newDBError(err, "error counting mapped users")
 	}
-	if err := tx.Offset(args.CalcOffset()).Limit(args.PerPage).Find(&users).Error; err != nil {
+	if err := tx.Order("id").Offset(args.CalcOffset()).Limit(args.PerPage).Find(&users).Error; err != nil {
 		return nil, newDBError(err, "error getting mapped users")
 	}
 	return users, nil
