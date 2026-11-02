@@ -1,3 +1,3 @@
-module github.com/UnlockedLabs/unlocked-product-template
+module github.com/UnlockedLabs/unlocked-provider-platforms
 
 go 1.26
