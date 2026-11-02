@@ -1,7 +1,7 @@
 # The image is named after this folder, which is the repo's name.
 IMAGE := $(notdir $(CURDIR))
 
-.PHONY: run worker test lint build
+.PHONY: run worker test test-integration lint build
 
 run:
 	go run ./cmd/app serve
@@ -11,6 +11,11 @@ worker:
 
 test:
 	go test -race ./...
+
+# Core's provider-route scenarios against the service, over Postgres in Docker.
+# CORE_MIGRATIONS is core's backend/migrations directory.
+test-integration:
+	CORE_MIGRATIONS=$(CORE_MIGRATIONS) go test -count=1 ./internal/server/integration
 
 # The same golangci-lint version CI runs, without installing it locally.
 lint:
