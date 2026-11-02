@@ -4,7 +4,7 @@ IMAGE := $(notdir $(CURDIR))
 .PHONY: run worker test lint build
 
 run:
-	PATH_PREFIX=/$(IMAGE) go run ./cmd/app serve
+	go run ./cmd/app serve
 
 worker:
 	go run ./cmd/app worker
