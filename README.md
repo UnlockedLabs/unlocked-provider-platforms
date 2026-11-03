@@ -53,11 +53,13 @@ Settings, all from the environment:
 | `APP_KEY`, `APP_URL`, `HYDRA_ADMIN_URL`, `HYDRA_PUBLIC_URL`, `ORY_TOKEN`, `KOLIBRI_*`, `MIDDLEWARE_CRON_SCHEDULE`, `BRIGHTSPACE_TEMP_DIR` | serve, worker | What the module read in core |
 | `APP_VERSION`, `GIT_COMMIT`, `GIT_BRANCH` | serve | What `/api/version` reports; CI bakes them into the image |
 
-The module needs unlocked-contracts v0.4.0. Merge unlocked-contracts first and
-tag it, then merge this repo. Until it is tagged, builds need an untracked
-`go.work` that replaces it with a local checkout. Once it is tagged, run
-`GOWORK=off go mod tidy` and commit the new `go.sum` lines, or CI and the
-image build fail on a missing checksum.
+go.mod pins unlocked-contracts to unlocked-contracts#7's head commit until
+v0.4.0 is tagged. Once it is, switch to the tag and commit the result:
+
+```sh
+GOWORK=off go mod edit -require=github.com/UnlockedLabs/unlocked-contracts@v0.4.0
+GOWORK=off go mod tidy
+```
 
 ## How to release
 
@@ -70,129 +72,24 @@ image build fail on a missing checksum.
 3. Merge that PR when you want a release. It tags `vX.Y.Z`, and CI pushes
    `:X.Y.Z` to ECR.
 
-### Commit types
-
-The `conventional` and `pr title` checks allow these types, and nothing else:
-
-| Type | In the changelog? | Version bump |
-|---|---|---|
-| `feat` | yes | minor |
-| `fix`, `perf`, `revert` | yes | patch |
-| `chore`, `docs`, `style`, `refactor`, `test`, `build`, `ci` | no | none on its own |
-
-A `!` after any type (`feat!:`, `refactor!:`) marks a breaking change: it
-always shows in the changelog and bumps the major version (the minor before
-1.0.0). A scope is optional: `fix(worker): ...`.
+The `conventional` and `pr title` checks allow `feat`, `fix`, `perf`,
+`revert`, `chore`, `docs`, `style`, `refactor`, `test`, `build` and `ci`. A
+`!` after the type marks a breaking change.
 
 ## How to deploy
 
-In `unlocked-platform`:
+The templates live in `unlocked-platform`, behind `components.providerPlatforms`
+(EN-206 part two): the `serve` Deployment, with its readiness probe on
+`/api/healthcheck`, and Service; the `worker` Deployment; and a migrate Job
+that runs after core's. There are no ingress paths: core proxies the routes.
+Pin the release in each site file and deploy through the deploy workflow. Only
+staging may use `latest`.
 
-1. **First time only:** add the product's templates to the chart behind
-   `components.<product>`: a Deployment for `serve` with a readiness probe on
-   `<PATH_PREFIX>/api/healthcheck` (and one for `worker` if it has background
-   jobs), a Service, ingress paths for its `PATH_PREFIX`, and a
-   per-revision migrate Job if it has tables.
-2. Pin the release in each site file (`images.<product>.tag: X.Y.Z`) and
-   deploy through the deploy workflow. Only staging may use `latest`.
+## Vulnerability alerts
 
-## Vulnerability alerts in Slack
-
-`govulncheck` checks the code, its dependencies and the Go version against the
-Go vulnerability database. It's a required check on every push, it runs on
-`main` every Monday at 14:00 UTC so new vulnerabilities are caught without a
-push, and it can be run by hand (**Actions → govulncheck → Run workflow**).
-
-When it fails on `main`, it posts one line to Slack: `UnlockedLabs/<repo>:
-govulncheck failed on main.` and a link to the run. Failures on other branches
-don't post; the PR's red check shows them. It posts only if the repo can see a
-secret named `SLACK_WEBHOOK_URL`. It's a secret, not a variable, because anyone
-with the URL can post to the channel. Without it, the run logs a notice and
-posts nothing.
-
-**Still to decide (EN-205):** one organization secret shared by every product
-repo, or a secret per repo, and which channel the alerts go to. Until then,
-repos run without it.
-
-### Get a webhook URL
-
-The URL comes from Slack. GitHub never shows a secret's value again, so it
-can't be copied from core's `SLACK_WEBHOOK_URL`.
-
-1. Go to [api.slack.com/apps](https://api.slack.com/apps) and sign in to the
-   Unlocked workspace.
-2. Open the app that already posts our alerts (core's go to
-   `#unlockedv2-alerts`). If there isn't one, **Create New App → From
-   scratch**, name it (such as "Unlocked CI alerts"), pick the workspace and
-   **Create App**.
-3. **Features → Incoming Webhooks**, and turn on **Activate Incoming
-   Webhooks**.
-4. **Add New Webhook to Workspace**, pick the channel and **Allow**. A
-   workspace admin may have to approve a new app first.
-5. Copy the URL (`https://hooks.slack.com/services/...`). Each URL posts to
-   one channel; a different channel needs a new webhook.
-
-### Give it to the repo
-
-**As an organization secret** (set up once; an org admin does it):
-
-1. Org **Settings → Secrets and variables → Actions → New organization
-   secret**.
-2. Name `SLACK_WEBHOOK_URL`, the URL as the value, **Repository access:
-   Selected repositories**, pick the repos, **Add secret**.
-
-For each new repo after that, open the secret, add the repo under **Repository
-access** and **Save**. Or, with a token that has the `admin:org` scope
-(`gh auth refresh -h github.com -s admin:org`):
-
-```sh
-gh api -X PUT orgs/UnlockedLabs/actions/secrets/SLACK_WEBHOOK_URL/repositories/$(gh api repos/UnlockedLabs/<repo> --jq .id)
-```
-
-Don't use `gh secret set --org ... --repos ...` to add a repo: it replaces the
-secret's whole repo list.
-
-**As a repo secret** (a repo admin does it); `gh` asks for the URL, so it stays
-out of your shell history:
-
-```sh
-gh secret set SLACK_WEBHOOK_URL -R UnlockedLabs/<repo>
-```
-
-Or repo **Settings → Secrets and variables → Actions → New repository secret**.
-
-### Check it
-
-The repo can see the secret if its name is listed by one of these:
-
-```sh
-gh secret list -R UnlockedLabs/<repo>
-gh api repos/UnlockedLabs/<repo>/actions/organization-secrets --jq '.secrets[].name'
-```
-
-The first lists repo secrets, the second organization secrets shared with the
-repo. To check the URL itself, post a test message to its channel:
-
-```sh
-curl --fail -X POST -H 'Content-Type: application/json' --data '{"text":"test from <repo>"}' '<url>'
-```
-
-### Change or revoke the URL
-
-If the URL leaks or the channel changes, remove the webhook in the Slack app's
-**Incoming Webhooks** page (that kills the old URL), add a new one, and update
-the secret. Updating an organization secret updates every repo that uses it.
-
-### When the weekly run stops
-
-GitHub turns off scheduled workflows in a public repo after 60 days with no
-activity. Turn it back on at **Actions → govulncheck → Enable workflow**.
-
-### When the check fails
-
-- **A finding in a dependency:** `go get <module>@<fixed version>`, then
-  `go mod tidy`, in a PR.
-- **A finding in the standard library:** a newer Go patch release fixes it.
-  The check and the image both use the newest patch of the Go version in
-  `go.mod`, so rerun the check once that release is out, and merge something
-  so `main` builds a new image with it.
+`govulncheck` runs on every PR and on `main` every Monday, against the Go
+version in `go.mod`. Vulnerabilities block the PR. A failure on `main` also
+posts to Slack if the repo can see a `SLACK_WEBHOOK_URL` secret (not set up
+yet; see EN-205); otherwise it shows only as a red check. To fix
+one, bump the module (`go get <module>@<fixed version>`, `go mod tidy`) or the
+`go` line in `go.mod` to the patch release that fixes it.
