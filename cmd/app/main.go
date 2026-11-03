@@ -22,6 +22,7 @@ const usage = "usage: app serve | app worker | app migrate"
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	initLogging()
 	if err := run(ctx, os.Args[1:]); err != nil {
 		slog.Error(err.Error())
 		os.Exit(1)

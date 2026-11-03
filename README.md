@@ -43,6 +43,7 @@ Settings, all from the environment:
 | `SERVICE_TOKEN` | serve | The shared token, sent as `Authorization: Bearer <token>`. Required: an empty token rejects every call |
 | `CORE_URL` | serve | Where core's `/internal/v1/core/` endpoints are, such as `http://server:8080`. Required |
 | `APP_ENV` | serve | `dev` skips the run at start of the LMS jobs |
+| `LOG_LEVEL` | all | `debug`, `info`, `warn`, `error` and the other logrus levels (default `info`). Logs are JSON like core's; a logging redo is tracked in EN-158 |
 | `APP_DSN`, or `DB_HOST` `DB_PORT` `DB_USER` `DB_PASSWORD` `DB_NAME` | all | The Postgres database |
 | `NATS_URL`, `NATS_USER`, `NATS_PASSWORD` | serve, worker | NATS, for the LMS jobs |
 | `PROVIDER_SERVICE_URL` | serve | Where the worker's user lists are, such as `http://worker:8081` |
