@@ -25,9 +25,11 @@ func Routes(token string, routes []module.Route) Mount {
 
 // Internal mounts the contracts' Handler, which answers core's typed calls
 // under /internal/v1/provider-platforms/. The Handler checks the token itself.
+// It sits at the root, not under PATH_PREFIX: ingress never routes it, core
+// reaches it at the service's own address.
 func Internal(token string, pp providerplatforms.ProviderPlatforms) Mount {
-	return func(mux *http.ServeMux, prefix string) {
-		mux.Handle(prefix+"/internal/v1/provider-platforms/", http.StripPrefix(prefix, providerplatforms.NewHandler(pp, token)))
+	return func(mux *http.ServeMux, _ string) {
+		mux.Handle("/internal/v1/provider-platforms/", providerplatforms.NewHandler(pp, token))
 	}
 }
 

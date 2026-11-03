@@ -18,7 +18,8 @@ facility, then proxies the module's `/api` routes here with the service token
 and the caller's claims. Core calls the typed interface under
 `/internal/v1/provider-platforms/` (unlocked-contracts `providerplatforms`),
 and this service calls core under `/internal/v1/core/` (`coreapi`). Neither
-path is ever routed by ingress.
+path is ever routed by ingress, and `PATH_PREFIX` doesn't apply to the
+internal one: core reaches it at the service's own address.
 
 ## Run it locally
 
@@ -39,7 +40,7 @@ Settings, all from the environment:
 | Variable | Used by | What it does |
 |---|---|---|
 | `ADDR` | serve | Where the API listens (default `:8080`) |
-| `PATH_PREFIX` | serve | Path every route lives under (default none) |
+| `PATH_PREFIX` | serve | Path every `/api` route lives under (default none). `/internal/v1/` stays at the root |
 | `SERVICE_TOKEN` | serve | The shared token, sent as `Authorization: Bearer <token>`. Required: an empty token rejects every call |
 | `CORE_URL` | serve | Where core's `/internal/v1/core/` endpoints are, such as `http://server:8080`. Required |
 | `APP_ENV` | serve | `dev` skips the run at start of the LMS jobs |

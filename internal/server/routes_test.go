@@ -140,14 +140,14 @@ func TestInternal(t *testing.T) {
 	srv := httptest.NewServer(newHandler(t, "/pp", Version{}, Internal(testToken, fakePP{})))
 	t.Cleanup(srv.Close)
 
-	t.Run("the contracts client reaches the handlers under the prefix", func(t *testing.T) {
-		got, err := providerplatforms.NewClient(srv.URL+"/pp", testToken, nil).ActiveProviders(context.Background())
+	t.Run("the contracts client reaches the handlers at the root, not under the prefix", func(t *testing.T) {
+		got, err := providerplatforms.NewClient(srv.URL, testToken, nil).ActiveProviders(context.Background())
 		if err != nil || len(got) != 1 || got[0].ID != 4 {
 			t.Fatalf("ActiveProviders() = %+v, %v, want provider 4", got, err)
 		}
 	})
 	t.Run("a wrong token is rejected", func(t *testing.T) {
-		_, err := providerplatforms.NewClient(srv.URL+"/pp", "wrong", nil).ActiveProviders(context.Background())
+		_, err := providerplatforms.NewClient(srv.URL, "wrong", nil).ActiveProviders(context.Background())
 		if err == nil {
 			t.Fatal("ActiveProviders() error = nil, want one")
 		}
