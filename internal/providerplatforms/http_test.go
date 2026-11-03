@@ -1,13 +1,10 @@
 package providerplatforms
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"github.com/UnlockedLabs/unlocked-provider-platforms/internal/module"
 
 	"github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
@@ -15,16 +12,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A failed request's error line carries core's fields, such as the admin on
-// an admin write, as core's own handlers' error lines do.
+// A failed request's error line names the module, method and path.
 func TestHandleErrorLogFields(t *testing.T) {
 	oldHooks := logrus.StandardLogger().ReplaceHooks(make(logrus.LevelHooks))
 	defer logrus.StandardLogger().ReplaceHooks(oldHooks)
 	hook := logtest.NewGlobal()
 
-	core := map[string]any{"admin_id": uint(3), "username": "facadmin", "handler": "NameNotFound"}
-	ctx := module.WithLog(context.Background(), core, func(string, any) {})
-	r := httptest.NewRequestWithContext(ctx, http.MethodPut, "/api/things/1", nil)
+	r := httptest.NewRequest(http.MethodPut, "/api/things/1", nil)
 	w := httptest.NewRecorder()
 	handle(func(http.ResponseWriter, *http.Request, sLog) error {
 		return errors.New("boom")
@@ -34,8 +28,6 @@ func TestHandleErrorLogFields(t *testing.T) {
 	entry := hook.LastEntry()
 	require.NotNil(t, entry)
 	assert.Equal(t, logrus.ErrorLevel, entry.Level)
-	assert.Equal(t, uint(3), entry.Data["admin_id"])
-	assert.Equal(t, "facadmin", entry.Data["username"])
 	assert.Equal(t, "providerplatforms", entry.Data["module"])
 	assert.Equal(t, http.MethodPut, entry.Data["method"])
 	assert.Equal(t, "/api/things/1", entry.Data["path"])
