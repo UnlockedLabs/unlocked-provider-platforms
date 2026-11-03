@@ -49,15 +49,8 @@ type worker struct {
 // run subscribes to the LMS jobs and serves the user lists until ctx is
 // canceled. Canceling ctx also stops the jobs that are running.
 func (w *worker) run(ctx context.Context, nc *nats.Conn) error {
-	for _, j := range w.subscriptions() {
-		_, err := nc.QueueSubscribe(j.job.PubName(), queueGroup, func(msg *nats.Msg) {
-			ctx, cancel := context.WithTimeout(ctx, jobTimeout)
-			defer cancel()
-			j.run(ctx, msg)
-		})
-		if err != nil {
-			return fmt.Errorf("subscribe to %s: %w", j.job.PubName(), err)
-		}
+	if err := w.subscribe(ctx, nc); err != nil {
+		return err
 	}
 	srv := &http.Server{Addr: usersAddr, Handler: w.routes(), ReadHeaderTimeout: 10 * time.Second}
 	served := make(chan error, 1)
@@ -70,6 +63,21 @@ func (w *worker) run(ctx context.Context, nc *nats.Conn) error {
 		defer cancel()
 		return srv.Shutdown(shutdown)
 	}
+}
+
+// subscribe has the worker take each LMS job from the queue group.
+func (w *worker) subscribe(ctx context.Context, nc *nats.Conn) error {
+	for _, j := range w.subscriptions() {
+		_, err := nc.QueueSubscribe(j.job.PubName(), queueGroup, func(msg *nats.Msg) {
+			ctx, cancel := context.WithTimeout(ctx, jobTimeout)
+			defer cancel()
+			j.run(ctx, msg)
+		})
+		if err != nil {
+			return fmt.Errorf("subscribe to %s: %w", j.job.PubName(), err)
+		}
+	}
+	return nil
 }
 
 // workerJob is one job the worker runs.

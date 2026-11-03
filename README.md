@@ -31,6 +31,7 @@ make run      # API on :8080
 make worker   # the worker
 make test     # go test -race
 make test-integration CORE_MIGRATIONS=/path/to/core/backend/migrations   # Postgres in Docker
+make test-nats   # the LMS job flow over NATS in Docker
 make lint     # golangci-lint, in Docker
 make build    # the image, named after the repo
 ```
