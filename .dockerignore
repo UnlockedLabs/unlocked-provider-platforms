@@ -1,3 +1,6 @@
 .git
 .github
 *.md
+go.work
+go.work.sum
+app

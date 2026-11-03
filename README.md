@@ -25,9 +25,11 @@ path is ever routed by ingress.
 Needs Go 1.26 and Docker, and a database that already has core's schema.
 
 ```sh
+export SERVICE_TOKEN=local-token CORE_URL=http://localhost:9090   # serve needs both
 make run      # API on :8080
 make worker   # the worker
 make test     # go test -race
+make test-integration CORE_MIGRATIONS=/path/to/core/backend/migrations   # Postgres in Docker
 make lint     # golangci-lint, in Docker
 make build    # the image, named after the repo
 ```
@@ -40,6 +42,7 @@ Settings, all from the environment:
 | `PATH_PREFIX` | serve | Path every route lives under (default none) |
 | `SERVICE_TOKEN` | serve | The shared token, sent as `Authorization: Bearer <token>`. Required: an empty token rejects every call |
 | `CORE_URL` | serve | Where core's `/internal/v1/core/` endpoints are, such as `http://server:8080`. Required |
+| `APP_ENV` | serve | `dev` skips the run at start of the LMS jobs |
 | `APP_DSN`, or `DB_HOST` `DB_PORT` `DB_USER` `DB_PASSWORD` `DB_NAME` | all | The Postgres database |
 | `NATS_URL`, `NATS_USER`, `NATS_PASSWORD` | serve, worker | NATS, for the LMS jobs |
 | `PROVIDER_SERVICE_URL` | serve | Where the worker's user lists are, such as `http://worker:8081` |
