@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -18,8 +17,7 @@ func authed(method, path string, claims *identity.Claims) *http.Request {
 	r := httptest.NewRequest(method, path, nil)
 	r.Header.Set("Authorization", "Bearer "+testToken)
 	if claims != nil {
-		b, _ := json.Marshal(claims)
-		r.Header.Set(ClaimsHeader, string(b))
+		_ = identity.SetClaimsHeader(r, claims)
 	}
 	return r
 }
@@ -114,7 +112,7 @@ func TestRoutes(t *testing.T) {
 	})
 	t.Run("claims that aren't JSON are a 401", func(t *testing.T) {
 		r := authed(http.MethodGet, "/pp/api/courses/7", nil)
-		r.Header.Set(ClaimsHeader, "{")
+		r.Header.Set(identity.ClaimsHeader, "{")
 		w := httptest.NewRecorder()
 		h.ServeHTTP(w, r)
 		if w.Code != http.StatusUnauthorized {

@@ -3,20 +3,12 @@ package server
 import (
 	"crypto/sha256"
 	"crypto/subtle"
-	"encoding/json"
 	"net/http"
 	"strings"
 
 	"github.com/UnlockedLabs/unlocked-contracts/identity"
 	"github.com/UnlockedLabs/unlocked-contracts/providerplatforms"
 	"github.com/UnlockedLabs/unlocked-provider-platforms/internal/module"
-)
-
-const (
-	// ClaimsHeader carries the caller's identity.Claims as JSON. Core sets it
-	// when it proxies a request here, after its own session, role, feature and
-	// facility checks.
-	ClaimsHeader = "X-Identity-Claims"
 )
 
 // Routes mounts the module's routes. Core is the public edge and checks who
@@ -54,15 +46,15 @@ func requireToken(token string, next http.Handler) http.Handler {
 	})
 }
 
-// withClaims puts the caller's claims from ClaimsHeader on the request's
+// withClaims puts the caller's claims from identity.ClaimsHeader on the request's
 // context, and answers 401 when there are none.
 func withClaims(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var c identity.Claims
-		if err := json.Unmarshal([]byte(r.Header.Get(ClaimsHeader)), &c); err != nil {
+		c, ok := identity.ClaimsFromRequest(r)
+		if !ok {
 			http.Error(w, "missing caller claims", http.StatusUnauthorized)
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(identity.NewContext(r.Context(), &c)))
+		next.ServeHTTP(w, r.WithContext(identity.NewContext(r.Context(), c)))
 	})
 }
