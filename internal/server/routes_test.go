@@ -35,6 +35,12 @@ func TestRequireToken(t *testing.T) {
 		{"token without the Bearer scheme", testToken, testToken, http.StatusUnauthorized},
 		{"missing token", testToken, "", http.StatusUnauthorized},
 		{"empty configured token rejects everything", "", "Bearer ", http.StatusUnauthorized},
+		{"lowercase scheme", testToken, "bearer " + testToken, http.StatusUnauthorized},
+		{"trailing space", testToken, "Bearer " + testToken + " ", http.StatusUnauthorized},
+		{"leading space", testToken, " Bearer " + testToken, http.StatusUnauthorized},
+		{"token as a prefix of the sent value", testToken, "Bearer " + testToken + "x", http.StatusUnauthorized},
+		{"sent value as a prefix of the token", testToken, "Bearer " + testToken[:3], http.StatusUnauthorized},
+		{"basic scheme", testToken, "Basic " + testToken, http.StatusUnauthorized},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -46,6 +52,29 @@ func TestRequireToken(t *testing.T) {
 			requireToken(tt.configured, next).ServeHTTP(w, r)
 			if w.Code != tt.want {
 				t.Fatalf("status = %d, want %d", w.Code, tt.want)
+			}
+		})
+	}
+}
+
+func TestRequireTokenIgnoresOtherPlaces(t *testing.T) {
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	tests := map[string]func(r *http.Request){
+		"token in the query string":      func(r *http.Request) { r.URL.RawQuery = "token=" + testToken },
+		"the old X-Service-Token header": func(r *http.Request) { r.Header.Set("X-Service-Token", testToken) },
+		"right token as a second header": func(r *http.Request) {
+			r.Header.Set("Authorization", "Bearer nope")
+			r.Header.Add("Authorization", "Bearer "+testToken)
+		},
+	}
+	for name, set := range tests {
+		t.Run(name, func(t *testing.T) {
+			r := httptest.NewRequest(http.MethodGet, "/", nil)
+			set(r)
+			w := httptest.NewRecorder()
+			requireToken(testToken, next).ServeHTTP(w, r)
+			if w.Code != http.StatusUnauthorized {
+				t.Fatalf("status = %d, want 401", w.Code)
 			}
 		})
 	}
