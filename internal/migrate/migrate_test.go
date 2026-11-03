@@ -62,3 +62,11 @@ func TestPendingSeesANewMigration(t *testing.T) {
 		t.Fatalf("Pending() = %v, %v, want true", pending, err)
 	}
 }
+
+func TestPendingReportsAnUnreadableLedger(t *testing.T) {
+	db := open(t)
+	_ = db.Close()
+	if pending, err := Pending(context.Background(), db, goose.DialectSQLite3, migrations); err == nil {
+		t.Fatalf("Pending() = %v, nil, want the query error: a down database is not a pending migration", pending)
+	}
+}
