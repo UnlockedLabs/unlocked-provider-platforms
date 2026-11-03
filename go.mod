@@ -3,7 +3,7 @@ module github.com/UnlockedLabs/unlocked-provider-platforms
 go 1.26
 
 require (
-	github.com/UnlockedLabs/unlocked-contracts v0.4.0
+	github.com/UnlockedLabs/unlocked-contracts v0.3.1-0.20261103165431-5af6164bc9db
 	github.com/adrg/strutil v0.3.1
 	github.com/glebarez/go-sqlite v1.21.2
 	github.com/glebarez/sqlite v1.11.0
@@ -55,4 +55,3 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 	modernc.org/sqlite v1.38.2 // indirect
 )
-
