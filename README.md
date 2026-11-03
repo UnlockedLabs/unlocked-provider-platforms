@@ -26,7 +26,7 @@ internal one: core reaches it at the service's own address.
 Needs Go 1.26 and Docker, and a database that already has core's schema.
 
 ```sh
-export SERVICE_TOKEN=local-token CORE_URL=http://localhost:9090   # serve needs both
+export SERVICE_TOKEN=local-token CORE_URL=http://127.0.0.1:9090   # serve needs both
 make run      # API on :8080
 make worker   # the worker
 make test     # go test -race
