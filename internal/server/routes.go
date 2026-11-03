@@ -13,9 +13,6 @@ import (
 )
 
 const (
-	// TokenHeader carries the shared service token, the same header the
-	// contracts' clients send.
-	TokenHeader = "X-Service-Token"
 	// ClaimsHeader carries the caller's identity.Claims as JSON. Core sets it
 	// when it proxies a request here, after its own session, role, feature and
 	// facility checks.
@@ -42,12 +39,13 @@ func Internal(token string, pp providerplatforms.ProviderPlatforms) Mount {
 	}
 }
 
-// requireToken serves next only to requests that carry token. An empty token
-// rejects every request, so a service started without one fails closed.
+// requireToken serves next only to requests that carry token as a bearer
+// token, as the contracts' clients send it. An empty token rejects every
+// request, so a service started without one fails closed.
 func requireToken(token string, next http.Handler) http.Handler {
-	want := sha256.Sum256([]byte(token))
+	want := sha256.Sum256([]byte("Bearer " + token))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		got := sha256.Sum256([]byte(r.Header.Get(TokenHeader)))
+		got := sha256.Sum256([]byte(r.Header.Get("Authorization")))
 		if token == "" || subtle.ConstantTimeCompare(got[:], want[:]) != 1 {
 			http.Error(w, "invalid service token", http.StatusUnauthorized)
 			return

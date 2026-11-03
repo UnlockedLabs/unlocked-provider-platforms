@@ -38,7 +38,7 @@ Settings, all from the environment:
 |---|---|---|
 | `ADDR` | serve | Where the API listens (default `:8080`) |
 | `PATH_PREFIX` | serve | Path every route lives under (default none) |
-| `SERVICE_TOKEN` | serve | The shared token, sent in `X-Service-Token`. Required: an empty token rejects every call |
+| `SERVICE_TOKEN` | serve | The shared token, sent as `Authorization: Bearer <token>`. Required: an empty token rejects every call |
 | `CORE_URL` | serve | Where core's `/internal/v1/core/` endpoints are, such as `http://server:8080`. Required |
 | `APP_DSN`, or `DB_HOST` `DB_PORT` `DB_USER` `DB_PASSWORD` `DB_NAME` | all | The Postgres database |
 | `NATS_URL`, `NATS_USER`, `NATS_PASSWORD` | serve, worker | NATS, for the LMS jobs |

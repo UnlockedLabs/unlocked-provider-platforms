@@ -16,7 +16,7 @@ const testToken = "s3cret"
 
 func authed(method, path string, claims *identity.Claims) *http.Request {
 	r := httptest.NewRequest(method, path, nil)
-	r.Header.Set(TokenHeader, testToken)
+	r.Header.Set("Authorization", "Bearer "+testToken)
 	if claims != nil {
 		b, _ := json.Marshal(claims)
 		r.Header.Set(ClaimsHeader, string(b))
@@ -30,16 +30,17 @@ func TestRequireToken(t *testing.T) {
 		name, configured, sent string
 		want                   int
 	}{
-		{"right token", testToken, testToken, http.StatusNoContent},
-		{"wrong token", testToken, "nope", http.StatusUnauthorized},
+		{"right token", testToken, "Bearer " + testToken, http.StatusNoContent},
+		{"wrong token", testToken, "Bearer nope", http.StatusUnauthorized},
+		{"token without the Bearer scheme", testToken, testToken, http.StatusUnauthorized},
 		{"missing token", testToken, "", http.StatusUnauthorized},
-		{"empty configured token rejects everything", "", "", http.StatusUnauthorized},
+		{"empty configured token rejects everything", "", "Bearer ", http.StatusUnauthorized},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
 			if tt.sent != "" {
-				r.Header.Set(TokenHeader, tt.sent)
+				r.Header.Set("Authorization", tt.sent)
 			}
 			w := httptest.NewRecorder()
 			requireToken(tt.configured, next).ServeHTTP(w, r)

@@ -203,7 +203,7 @@ func (c *serviceClient) do(t *testing.T, claims *identity.Claims, method, path s
 	require.NoError(t, err)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set(server.TokenHeader, serviceToken)
+	req.Header.Set("Authorization", "Bearer "+serviceToken)
 	cb, err := json.Marshal(claims)
 	require.NoError(t, err)
 	req.Header.Set(server.ClaimsHeader, string(cb))
