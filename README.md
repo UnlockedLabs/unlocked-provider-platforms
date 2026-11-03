@@ -46,6 +46,7 @@ Settings, all from the environment:
 | `APP_ENV` | serve | `dev` skips the run at start of the LMS jobs |
 | `LOG_LEVEL` | all | `debug`, `info`, `warn`, `error` and the other logrus levels (default `info`). Logs are JSON like core's; a logging redo is tracked in EN-158 |
 | `APP_DSN`, or `DB_HOST` `DB_PORT` `DB_USER` `DB_PASSWORD` `DB_NAME` | all | The Postgres database |
+| `DB_SSLMODE` | all | TLS mode when the DSN is built from `DB_*` (default `prefer`; core uses `allow`) |
 | `NATS_URL`, `NATS_USER`, `NATS_PASSWORD` | serve, worker | NATS, for the LMS jobs |
 | `PROVIDER_SERVICE_URL` | serve | Where the worker's user lists are, such as `http://worker:8081` |
 | `APP_KEY`, `APP_URL`, `HYDRA_ADMIN_URL`, `HYDRA_PUBLIC_URL`, `ORY_TOKEN`, `KOLIBRI_*`, `MIDDLEWARE_CRON_SCHEDULE`, `BRIGHTSPACE_TEMP_DIR` | serve, worker | What the module read in core |

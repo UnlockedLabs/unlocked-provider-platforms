@@ -18,12 +18,18 @@ import (
 )
 
 // DSN is APP_DSN if set, else built from the DB_* variables, as core does.
+// DB_SSLMODE picks the TLS mode and defaults to prefer; core's DSN uses allow,
+// which only encrypts if the server insists.
 func DSN() string {
 	if dsn := os.Getenv("APP_DSN"); dsn != "" {
 		return dsn
 	}
-	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=allow",
-		os.Getenv("DB_HOST"), os.Getenv("DB_PORT"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), os.Getenv("DB_NAME"))
+	sslmode := os.Getenv("DB_SSLMODE")
+	if sslmode == "" {
+		sslmode = "prefer"
+	}
+	return fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		os.Getenv("DB_HOST"), os.Getenv("DB_PORT"), os.Getenv("DB_USER"), os.Getenv("DB_PASSWORD"), os.Getenv("DB_NAME"), sslmode)
 }
 
 // Open is a plain connection as the database user, for the migrations.
