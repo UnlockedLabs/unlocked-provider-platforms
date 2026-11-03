@@ -46,8 +46,9 @@ Settings, all from the environment:
 | `APP_KEY`, `APP_URL`, `HYDRA_ADMIN_URL`, `HYDRA_PUBLIC_URL`, `ORY_TOKEN`, `KOLIBRI_*`, `MIDDLEWARE_CRON_SCHEDULE`, `BRIGHTSPACE_TEMP_DIR` | serve, worker | What the module read in core |
 | `APP_VERSION`, `GIT_COMMIT`, `GIT_BRANCH` | serve | What `/api/version` reports; CI bakes them into the image |
 
-The module needs unlocked-contracts v0.3.0. Until it is tagged, builds need an
-untracked `go.work` that replaces it with a local checkout.
+The module needs unlocked-contracts v0.4.0. Merge unlocked-contracts first and
+tag it, then merge this repo. Until it is tagged, builds need an untracked
+`go.work` that replaces it with a local checkout.
 
 ## How to release
 

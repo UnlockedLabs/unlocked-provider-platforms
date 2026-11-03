@@ -3,7 +3,7 @@ module github.com/UnlockedLabs/unlocked-provider-platforms
 go 1.26
 
 require (
-	github.com/UnlockedLabs/unlocked-contracts v0.3.0
+	github.com/UnlockedLabs/unlocked-contracts v0.4.0
 	github.com/adrg/strutil v0.3.1
 	github.com/glebarez/go-sqlite v1.21.2
 	github.com/glebarez/sqlite v1.11.0
