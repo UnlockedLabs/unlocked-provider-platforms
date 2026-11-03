@@ -1,2 +1,4 @@
 /app
 .env
+go.work
+go.work.sum

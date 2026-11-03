@@ -51,7 +51,9 @@ Settings, all from the environment:
 
 The module needs unlocked-contracts v0.4.0. Merge unlocked-contracts first and
 tag it, then merge this repo. Until it is tagged, builds need an untracked
-`go.work` that replaces it with a local checkout.
+`go.work` that replaces it with a local checkout. Once it is tagged, run
+`GOWORK=off go mod tidy` and commit the new `go.sum` lines, or CI and the
+image build fail on a missing checksum.
 
 ## How to release
 
