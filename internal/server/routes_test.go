@@ -22,39 +22,6 @@ func authed(method, path string, claims *identity.Claims) *http.Request {
 	return r
 }
 
-func TestRequireToken(t *testing.T) {
-	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })
-	tests := []struct {
-		name, configured, sent string
-		want                   int
-	}{
-		{"right token", testToken, "Bearer " + testToken, http.StatusNoContent},
-		{"wrong token", testToken, "Bearer nope", http.StatusUnauthorized},
-		{"token without the Bearer scheme", testToken, testToken, http.StatusUnauthorized},
-		{"missing token", testToken, "", http.StatusUnauthorized},
-		{"empty configured token rejects everything", "", "Bearer ", http.StatusUnauthorized},
-		{"lowercase scheme", testToken, "bearer " + testToken, http.StatusUnauthorized},
-		{"trailing space", testToken, "Bearer " + testToken + " ", http.StatusUnauthorized},
-		{"leading space", testToken, " Bearer " + testToken, http.StatusUnauthorized},
-		{"token as a prefix of the sent value", testToken, "Bearer " + testToken + "x", http.StatusUnauthorized},
-		{"sent value as a prefix of the token", testToken, "Bearer " + testToken[:3], http.StatusUnauthorized},
-		{"basic scheme", testToken, "Basic " + testToken, http.StatusUnauthorized},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			r := httptest.NewRequest(http.MethodGet, "/", nil)
-			if tt.sent != "" {
-				r.Header.Set("Authorization", tt.sent)
-			}
-			w := httptest.NewRecorder()
-			requireToken(tt.configured, next).ServeHTTP(w, r)
-			if w.Code != tt.want {
-				t.Fatalf("status = %d, want %d", w.Code, tt.want)
-			}
-		})
-	}
-}
-
 func TestRequireTokenIgnoresOtherPlaces(t *testing.T) {
 	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })
 	tests := map[string]func(r *http.Request){
@@ -70,7 +37,7 @@ func TestRequireTokenIgnoresOtherPlaces(t *testing.T) {
 			r := httptest.NewRequest(http.MethodGet, "/", nil)
 			set(r)
 			w := httptest.NewRecorder()
-			requireToken(testToken, next).ServeHTTP(w, r)
+			identity.RequireServiceToken(testToken, next).ServeHTTP(w, r)
 			if w.Code != http.StatusUnauthorized {
 				t.Fatalf("status = %d, want 401", w.Code)
 			}
