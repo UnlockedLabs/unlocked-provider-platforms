@@ -286,11 +286,13 @@ func (q queryContext) CalcOffset() int {
 
 // OrderClause is the request's order, or fallback when it has none.
 func (q queryContext) OrderClause(fallback string) string {
-	val := q.OrderBy + " " + q.Order
-	if val == " " || q.OrderBy == "" {
+	if q.OrderBy == "" {
 		return fallback
 	}
-	return val
+	if q.Order == "" {
+		return q.OrderBy
+	}
+	return q.OrderBy + " " + validOrder(q.Order)
 }
 
 func (q queryContext) SearchQuery() string {
