@@ -395,7 +395,6 @@ func autoRegisterCanvas(prov *ProviderPlatform, oidcClient *OidcClient) (string,
 		log.Println("Error creating request object: ", err)
 		return "", err
 	}
-	log.Printf("Authorization: Bearer %s", prov.AccessKey)
 	headers := make(map[string]string)
 	headers["Content-Type"] = "application/x-www-form-urlencoded"
 	headers["Authorization"] = "Bearer " + prov.AccessKey
@@ -403,7 +402,6 @@ func autoRegisterCanvas(prov *ProviderPlatform, oidcClient *OidcClient) (string,
 	for k, v := range headers {
 		request.Header.Add(k, v)
 	}
-	log.Printf("Request: %v", request)
 	response, err := client.Do(request)
 	if err != nil {
 		log.Println("Error sending request: ", err)
