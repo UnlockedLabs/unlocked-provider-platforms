@@ -441,7 +441,7 @@ func (srv *server) handleMatchUsers(w http.ResponseWriter, r *http.Request, log 
 // allProviderUsers returns every user the provider knows about, mapped or not.
 // listProviderUsers is the counterpart that returns only the unmapped ones.
 func (srv *server) allProviderUsers(ctx context.Context, provider *ProviderPlatform) ([]ImportUser, error) {
-	liveUsers, live, err := srv.live.Users(ctx, provider.ID)
+	liveUsers, live, err := srv.liveUsers(ctx, provider)
 	if err != nil {
 		return nil, err
 	}
@@ -459,7 +459,7 @@ func (srv *server) allProviderUsers(ctx context.Context, provider *ProviderPlatf
 // their own users (Essential Ed) are read directly; the rest come from the
 // worker (worker.go).
 func (srv *server) listProviderUsers(ctx context.Context, provider *ProviderPlatform) ([]ImportUser, error) {
-	liveUsers, live, err := srv.live.Users(ctx, provider.ID)
+	liveUsers, live, err := srv.liveUsers(ctx, provider)
 	if err != nil {
 		return nil, err
 	}
@@ -472,6 +472,15 @@ func (srv *server) listProviderUsers(ctx context.Context, provider *ProviderPlat
 	}
 	// The worker already filters out mapped users for these providers.
 	return service.GetUsers()
+}
+
+// liveUsers asks core for the users of a provider it lists live. Only Essential
+// Ed does, so the rest never leave this service.
+func (srv *server) liveUsers(ctx context.Context, provider *ProviderPlatform) ([]module.ProviderUser, bool, error) {
+	if provider.Type != EssentialEd {
+		return nil, false, nil
+	}
+	return srv.live.Users(ctx, provider.ID)
 }
 
 // fromLive is the users core's live provider code listed.

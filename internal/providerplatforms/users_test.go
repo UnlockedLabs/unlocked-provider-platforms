@@ -90,4 +90,12 @@ func TestProviderUsers(t *testing.T) {
 		_, err = failing.listProviderUsers(ctx, essentialEd)
 		assert.ErrorContains(t, err, "essential ed is down")
 	})
+
+	t.Run("other providers never ask core", func(t *testing.T) {
+		failing := &server{accounts: srv.accounts, live: fakeLiveProviders{err: errors.New("core is down")}}
+		_, err := failing.allProviderUsers(ctx, kolibri)
+		assert.NoError(t, err)
+		_, err = failing.listProviderUsers(ctx, kolibri)
+		assert.NoError(t, err)
+	})
 }
