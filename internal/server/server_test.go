@@ -10,9 +10,9 @@ import (
 	"testing"
 )
 
-func newHandler(t *testing.T, prefix string, v Version) http.Handler {
+func newHandler(t *testing.T, prefix string, v Version, mounts ...Mount) http.Handler {
 	t.Helper()
-	h, err := NewHandler(prefix, v)
+	h, err := NewHandler(prefix, v, mounts...)
 	if err != nil {
 		t.Fatalf("NewHandler(%q) error = %v", prefix, err)
 	}

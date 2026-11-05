@@ -1,49 +1,70 @@
-# unlocked-product-template
+# unlocked-provider-platforms
 
-The starting point for every Unlocked product repo (EN-202). Create a new
-product from it with GitHub's **Use this template** button, then follow
-[New product checklist](#new-product-checklist).
+Provider Platforms as its own service (EN-206): LMS connections (Canvas,
+Brightspace, Kolibri, Essential Education), the users linked to them, their
+sync jobs, and the OIDC clients for LMS sign-in. Built from
+unlocked-product-template; the module code is in `internal/providerplatforms`.
 
-It gives a product:
+One binary, one image:
 
-- **One Go binary, one image:** `app serve` runs the API, `app worker` runs the
-  background worker.
-- **`GET <PATH_PREFIX>/api/version`**, the same JSON as unlocked-core's and the
-  tutor's: `{"version": "...", "commit": "...", "branch": "..."}`.
-- **`GET <PATH_PREFIX>/api/healthcheck`**, which returns `OK`, the same as
-  core's. Point the Deployment's readiness probe at it.
-- **Routing under a path prefix:** every route lives under `PATH_PREFIX`, the
-  path ingress sends this product's requests to.
-- **CI:** tests, golangci-lint and govulncheck on every push, conventional-commit
-  checks, and an image pushed to ECR from `main` and from each release.
-- **release-please:** versions and the changelog come from the commit messages.
+- `app migrate` applies the embedded migrations (ledger
+  `goose_db_version_providerplatforms`). Run it after core's migrations: the
+  first one moves tables core created out of `public`.
+- `app serve` runs the API and the job scheduler.
+- `app worker` runs the LMS jobs and serves the provider user lists on `:8081`.
+- `app seed-dev` (local only, `APP_ENV=dev`) adds the local Canvas from core's
+  `make canvas`, its courses, and a year of activity, outcomes and milestones
+  for core's residents. Core's `make seed` runs it.
+- `app migrate-reset` (local only, `APP_ENV=dev`) rolls back the migrations.
+  Core's `make migrate-fresh` runs it before resetting core's own.
 
-There's no Kubernetes chart here. Every product's templates live in the
-`unlocked-platform` chart (EN-183).
+Core stays the public edge. It checks the session, role, feature flag and
+facility, then proxies the module's `/api` routes here with the service token
+and the caller's claims. Core calls the typed interface under
+`/internal/v1/provider-platforms/` (unlocked-contracts `providerplatforms`),
+and this service calls core under `/internal/v1/core/` (`coreapi`). Neither
+path is ever routed by ingress, and `PATH_PREFIX` doesn't apply to the
+internal one: core reaches it at the service's own address.
 
 ## Run it locally
 
-Needs Go 1.26 and Docker.
+Needs Go 1.26 and Docker, and a database that already has core's schema.
 
 ```sh
-make run      # API on :8080, under /<repo name>
+export PROVIDER_PLATFORMS_TOKEN=local-token CORE_URL=http://127.0.0.1:9090   # serve needs both
+make run      # API on :8080
 make worker   # the worker
 make test     # go test -race
+make test-integration CORE_MIGRATIONS=/path/to/core/backend/migrations   # Postgres in Docker
+make test-nats   # the LMS job flow over NATS in Docker
 make lint     # golangci-lint, in Docker
 make build    # the image, named after the repo
 ```
 
-```sh
-curl localhost:8080/<repo name>/api/version
-```
-
 Settings, all from the environment:
 
-| Variable | Default | What it does |
+| Variable | Used by | What it does |
 |---|---|---|
-| `ADDR` | `:8080` | Where the API listens |
-| `PATH_PREFIX` | none (root) | The path every route lives under, such as `/example` (`example` and `/example/` work too). Between slashes it may have letters, digits, `-`, `.`, `_` and `~`; anything else stops `serve` with an error. |
-| `APP_VERSION`, `GIT_COMMIT`, `GIT_BRANCH` | `unknown` | What `/api/version` reports. CI bakes them into the image. |
+| `ADDR` | serve | Where the API listens (default `:8080`) |
+| `PATH_PREFIX` | serve | Path every `/api` route lives under (default none). `/internal/v1/` stays at the root |
+| `PROVIDER_PLATFORMS_TOKEN` | serve | The site's secret core and this service call each other with, sent as `Authorization: Bearer <token>`. Required: an empty token rejects every call |
+| `CORE_URL` | serve | Where core's `/internal/v1/core/` endpoints are, such as `http://server:8080`. Required |
+| `APP_ENV` | serve, seed-dev, migrate-reset | `dev` skips the run at start of the LMS jobs, and is required by seed-dev and migrate-reset |
+| `LOG_LEVEL` | all | `debug`, `info`, `warn`, `error` and the other logrus levels (default `info`). Logs are JSON like core's; a logging redo is tracked in EN-158 |
+| `APP_DSN`, or `DB_HOST` `DB_PORT` `DB_USER` `DB_PASSWORD` `DB_NAME` | all | The Postgres database |
+| `DB_SSLMODE` | all | TLS mode when the DSN is built from `DB_*` (default `prefer`; core uses `allow`) |
+| `NATS_URL`, `NATS_USER`, `NATS_PASSWORD` | serve, worker | NATS, for the LMS jobs |
+| `PROVIDER_SERVICE_URL` | serve | Where the worker's user lists are, such as `http://worker:8081` |
+| `APP_KEY`, `APP_URL`, `HYDRA_ADMIN_URL`, `HYDRA_PUBLIC_URL`, `ORY_TOKEN`, `KOLIBRI_*`, `MIDDLEWARE_CRON_SCHEDULE`, `BRIGHTSPACE_TEMP_DIR` | serve, worker | What the module read in core |
+| `APP_VERSION`, `GIT_COMMIT`, `GIT_BRANCH` | serve | What `/api/version` reports; CI bakes them into the image |
+
+go.mod pins unlocked-contracts to unlocked-contracts#7's head commit until
+v0.4.0 is tagged. Once it is, switch to the tag and commit the result:
+
+```sh
+GOWORK=off go mod edit -require=github.com/UnlockedLabs/unlocked-contracts@v0.4.0
+GOWORK=off go mod tidy
+```
 
 ## How to release
 
@@ -56,186 +77,24 @@ Settings, all from the environment:
 3. Merge that PR when you want a release. It tags `vX.Y.Z`, and CI pushes
    `:X.Y.Z` to ECR.
 
-### Commit types
-
-The `conventional` and `pr title` checks allow these types, and nothing else:
-
-| Type | In the changelog? | Version bump |
-|---|---|---|
-| `feat` | yes | minor |
-| `fix`, `perf`, `revert` | yes | patch |
-| `chore`, `docs`, `style`, `refactor`, `test`, `build`, `ci` | no | none on its own |
-
-A `!` after any type (`feat!:`, `refactor!:`) marks a breaking change: it
-always shows in the changelog and bumps the major version (the minor before
-1.0.0). A scope is optional: `fix(worker): ...`.
+The `conventional` and `pr title` checks allow `feat`, `fix`, `perf`,
+`revert`, `chore`, `docs`, `style`, `refactor`, `test`, `build` and `ci`. A
+`!` after the type marks a breaking change.
 
 ## How to deploy
 
-In `unlocked-platform`:
+The templates live in `unlocked-platform`, behind `components.providerPlatforms`
+(EN-206 part two): the `serve` Deployment, with its readiness probe on
+`/api/healthcheck`, and Service; the `worker` Deployment; and a migrate Job
+that runs after core's. There are no ingress paths: core proxies the routes.
+Pin the release in each site file and deploy through the deploy workflow. Only
+staging may use `latest`.
 
-1. **First time only:** add the product's templates to the chart behind
-   `components.<product>`: a Deployment for `serve` with a readiness probe on
-   `<PATH_PREFIX>/api/healthcheck` (and one for `worker` if it has background
-   jobs), a Service, ingress paths for its `PATH_PREFIX`, and a
-   per-revision migrate Job if it has tables.
-2. Pin the release in each site file (`images.<product>.tag: X.Y.Z`) and
-   deploy through the deploy workflow. Only staging may use `latest`.
+## Vulnerability alerts
 
-## Vulnerability alerts in Slack
-
-`govulncheck` checks the code, its dependencies and the Go version against the
-Go vulnerability database. It's a required check on every push, it runs on
-`main` every Monday at 14:00 UTC so new vulnerabilities are caught without a
-push, and it can be run by hand (**Actions → govulncheck → Run workflow**).
-
-When it fails on `main`, it posts one line to Slack: `UnlockedLabs/<repo>:
-govulncheck failed on main.` and a link to the run. Failures on other branches
-don't post; the PR's red check shows them. It posts only if the repo can see a
-secret named `SLACK_WEBHOOK_URL`. It's a secret, not a variable, because anyone
-with the URL can post to the channel. Without it, the run logs a notice and
-posts nothing.
-
-**Still to decide (EN-205):** one organization secret shared by every product
-repo, or a secret per repo, and which channel the alerts go to. Until then,
-repos run without it.
-
-### Get a webhook URL
-
-The URL comes from Slack. GitHub never shows a secret's value again, so it
-can't be copied from core's `SLACK_WEBHOOK_URL`.
-
-1. Go to [api.slack.com/apps](https://api.slack.com/apps) and sign in to the
-   Unlocked workspace.
-2. Open the app that already posts our alerts (core's go to
-   `#unlockedv2-alerts`). If there isn't one, **Create New App → From
-   scratch**, name it (such as "Unlocked CI alerts"), pick the workspace and
-   **Create App**.
-3. **Features → Incoming Webhooks**, and turn on **Activate Incoming
-   Webhooks**.
-4. **Add New Webhook to Workspace**, pick the channel and **Allow**. A
-   workspace admin may have to approve a new app first.
-5. Copy the URL (`https://hooks.slack.com/services/...`). Each URL posts to
-   one channel; a different channel needs a new webhook.
-
-### Give it to the repo
-
-**As an organization secret** (set up once; an org admin does it):
-
-1. Org **Settings → Secrets and variables → Actions → New organization
-   secret**.
-2. Name `SLACK_WEBHOOK_URL`, the URL as the value, **Repository access:
-   Selected repositories**, pick the repos, **Add secret**.
-
-For each new repo after that, open the secret, add the repo under **Repository
-access** and **Save**. Or, with a token that has the `admin:org` scope
-(`gh auth refresh -h github.com -s admin:org`):
-
-```sh
-gh api -X PUT orgs/UnlockedLabs/actions/secrets/SLACK_WEBHOOK_URL/repositories/$(gh api repos/UnlockedLabs/<repo> --jq .id)
-```
-
-Don't use `gh secret set --org ... --repos ...` to add a repo: it replaces the
-secret's whole repo list.
-
-**As a repo secret** (a repo admin does it); `gh` asks for the URL, so it stays
-out of your shell history:
-
-```sh
-gh secret set SLACK_WEBHOOK_URL -R UnlockedLabs/<repo>
-```
-
-Or repo **Settings → Secrets and variables → Actions → New repository secret**.
-
-### Check it
-
-The repo can see the secret if its name is listed by one of these:
-
-```sh
-gh secret list -R UnlockedLabs/<repo>
-gh api repos/UnlockedLabs/<repo>/actions/organization-secrets --jq '.secrets[].name'
-```
-
-The first lists repo secrets, the second organization secrets shared with the
-repo. To check the URL itself, post a test message to its channel:
-
-```sh
-curl --fail -X POST -H 'Content-Type: application/json' --data '{"text":"test from <repo>"}' '<url>'
-```
-
-### Change or revoke the URL
-
-If the URL leaks or the channel changes, remove the webhook in the Slack app's
-**Incoming Webhooks** page (that kills the old URL), add a new one, and update
-the secret. Updating an organization secret updates every repo that uses it.
-
-### When the weekly run stops
-
-GitHub turns off scheduled workflows in a public repo after 60 days with no
-activity. Turn it back on at **Actions → govulncheck → Enable workflow**.
-
-### When the check fails
-
-- **A finding in a dependency:** `go get <module>@<fixed version>`, then
-  `go mod tidy`, in a PR.
-- **A finding in the standard library:** a newer Go patch release fixes it.
-  The check and the image both use the newest patch of the Go version in
-  `go.mod`, so rerun the check once that release is out, and merge something
-  so `main` builds a new image with it.
-
-## New product checklist
-
-Replace `<repo>` with the new repo's name, such as `unlocked-open-content`.
-
-1. **Create the repo** from this template under UnlockedLabs. Its first runs
-   fail until steps 4 to 6 are done: `build-and-push` can't get AWS
-   credentials, `release-please` has no bot, and GitHub's own "Initial commit"
-   isn't a conventional commit. That's expected.
-2. **Rename the module** (Go files only; this README keeps the template's name
-   until step 9 replaces it). `perl -pi` works the same on Linux and macOS,
-   unlike `sed -i`:
-   ```sh
-   grep -rl unlocked-product-template --include='*.go' --include=go.mod . \
-     | xargs perl -pi -e 's#unlocked-product-template#<repo>#g'
-   ```
-3. **Branch protection on `main`:** copy the template's `protect-main`
-   ruleset (PRs with one approval, and the `vet and test`, `golangci-lint`,
-   `govulncheck`, `conventional` and `pr title` checks). One line, so it works
-   in bash and fish:
-   ```sh
-   gh api repos/UnlockedLabs/unlocked-product-template/rulesets/$(gh api repos/UnlockedLabs/unlocked-product-template/rulesets --jq '.[] | select(.name=="protect-main") | .id') --jq '{name, target, enforcement, conditions, rules, bypass_actors}' | gh api -X POST repos/UnlockedLabs/<repo>/rulesets --input -
-   ```
-   `.github/CODEOWNERS` asks `@UnlockedLabs/reviewers` to review every PR, so
-   check the team can write to the repo (`maintain` or `push`):
-   ```sh
-   gh api repos/UnlockedLabs/<repo>/teams --jq '.[] | "\(.slug) \(.permission)"'
-   ```
-4. **Release bot:** install the unlocked-release-bot GitHub App on the repo
-   (the App's **Install App** page, **Configure**, then add the repo). Add the
-   variable `RELEASE_APP_CLIENT_ID` (`Iv23liURFfuC0NzSCm4G`) and the secret
-   `RELEASE_APP_PRIVATE_KEY`. For a key, open the App's settings, then
-   **Credentials → Key pairs → New key**; paste the whole `.pem` and delete
-   the file.
-5. **ECR:** create an ECR repository named `<repo>` in `us-west-2`, with
-   mutable tags (the default), since every merge to `main` moves `:latest`:
-   ```sh
-   aws ecr create-repository --repository-name <repo> --region us-west-2 --image-tag-mutability MUTABLE
-   ```
-   In the console, leave **Tag immutability** on **Mutable**.
-6. **AWS access for CI:** add the repo to the trust policy of the
-   `GithubActionsBuildPushEcr` role. New repos get the immutable OIDC subject
-   `repo:UnlockedLabs@<owner id>/<repo>@<repo id>:*` (EN-187); check the
-   prefix with `gh api repos/UnlockedLabs/<repo>/actions/oidc/customization/sub`
-   and the ids with `gh api repos/UnlockedLabs/<repo> --jq '.owner.id, .id'`.
-   Then add the role's ARN as the secret `AWS_IAM_ROLE`.
-7. **Vulnerability alerts in Slack:** give the repo the `SLACK_WEBHOOK_URL`
-   secret, as in [Vulnerability alerts in Slack](#vulnerability-alerts-in-slack).
-   Without it, `govulncheck` still runs and still blocks PRs; it just doesn't
-   post to Slack.
-8. **Private Go module?** If other repos import it, set
-   `GOPRIVATE=github.com/UnlockedLabs/*` where it's built, and give CI a read
-   token.
-9. **README:** replace this one with what the product is, how to run it
-   locally, and how to release it.
-10. **Platform:** add its templates and pin its tag, as in
-    [How to deploy](#how-to-deploy).
+`govulncheck` runs on every PR and on `main` every Monday, against the Go
+version in `go.mod`. Vulnerabilities block the PR. A failure on `main` also
+posts to Slack if the repo can see a `SLACK_WEBHOOK_URL` secret (not set up
+yet; see EN-205); otherwise it shows only as a red check. To fix
+one, bump the module (`go get <module>@<fixed version>`, `go mod tidy`) or the
+`go` line in `go.mod` to the patch release that fixes it.

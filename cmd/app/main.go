@@ -1,6 +1,8 @@
-// Command app is the product's one binary: "app serve" runs the API and
-// "app worker" runs the background worker. Both stop cleanly on SIGINT or
-// SIGTERM.
+// Command app is Provider Platforms' one binary: "app serve" runs the API and
+// the job scheduler, "app worker" runs the LMS jobs, and "app migrate"
+// applies the database migrations. For a local database, "app seed-dev" adds
+// sample data and "app migrate-reset" rolls back the migrations. Serve and
+// worker stop cleanly on SIGINT or SIGTERM.
 package main
 
 import (
@@ -12,15 +14,16 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/UnlockedLabs/unlocked-product-template/internal/server"
-	"github.com/UnlockedLabs/unlocked-product-template/internal/worker"
+	"github.com/UnlockedLabs/unlocked-provider-platforms/internal/app"
+	"github.com/UnlockedLabs/unlocked-provider-platforms/internal/server"
 )
 
-const usage = "usage: app serve | app worker"
+const usage = "usage: app serve | app worker | app migrate | app seed-dev | app migrate-reset"
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	initLogging()
 	if err := run(ctx, os.Args[1:]); err != nil {
 		slog.Error(err.Error())
 		os.Exit(1)
@@ -33,9 +36,21 @@ func run(ctx context.Context, args []string) error {
 	}
 	switch args[0] {
 	case "serve":
-		return server.Serve(ctx, envOr("ADDR", ":8080"), os.Getenv("PATH_PREFIX"), server.VersionFromEnv())
+		return app.Serve(ctx, app.ServeConfig{
+			Addr:       envOr("ADDR", ":8080"),
+			PathPrefix: os.Getenv("PATH_PREFIX"),
+			Version:    server.VersionFromEnv(),
+			Token:      os.Getenv("PROVIDER_PLATFORMS_TOKEN"),
+			CoreURL:    os.Getenv("CORE_URL"),
+		})
 	case "worker":
-		return worker.Run(ctx)
+		return app.Work(ctx)
+	case "migrate":
+		return app.Migrate(ctx)
+	case "seed-dev":
+		return app.SeedDev(ctx)
+	case "migrate-reset":
+		return app.MigrateReset(ctx)
 	default:
 		return fmt.Errorf("unknown command %q: %s", args[0], usage)
 	}

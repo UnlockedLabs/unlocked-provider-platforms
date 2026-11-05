@@ -33,10 +33,14 @@ func VersionFromEnv() Version {
 	}
 }
 
+// Mount adds a group of routes to mux, under prefix (already cleaned).
+type Mount func(mux *http.ServeMux, prefix string)
+
 // NewHandler returns the API's routes, all under prefix: the path ingress
 // sends this product's requests to, such as "/example". An empty prefix
-// serves from the root. See cleanPrefix for what prefix may be.
-func NewHandler(prefix string, v Version) (http.Handler, error) {
+// serves from the root. See cleanPrefix for what prefix may be. The mounts
+// add the product's own routes.
+func NewHandler(prefix string, v Version, mounts ...Mount) (http.Handler, error) {
 	prefix, err := cleanPrefix(prefix)
 	if err != nil {
 		return nil, err
@@ -54,6 +58,9 @@ func NewHandler(prefix string, v Version) (http.Handler, error) {
 			slog.Error("write version response", "err", err)
 		}
 	})
+	for _, m := range mounts {
+		m(mux, prefix)
+	}
 	return mux, nil
 }
 
@@ -83,12 +90,12 @@ func cleanPrefix(prefix string) (string, error) {
 // Serve runs the API on addr until ctx is canceled, then shuts it down,
 // giving requests in flight up to 10 seconds to finish. A bad prefix or an
 // address it can't listen on is an error before it serves anything.
-func Serve(ctx context.Context, addr, prefix string, v Version) error {
+func Serve(ctx context.Context, addr, prefix string, v Version, mounts ...Mount) error {
 	prefix, err := cleanPrefix(prefix)
 	if err != nil {
 		return err
 	}
-	handler, err := NewHandler(prefix, v)
+	handler, err := NewHandler(prefix, v, mounts...)
 	if err != nil {
 		return err
 	}
