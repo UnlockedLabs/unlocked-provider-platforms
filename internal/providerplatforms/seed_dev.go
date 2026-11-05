@@ -19,17 +19,18 @@ import (
 //go:embed seed_dev_courses.json
 var sampleCourses []byte
 
+// devCanvasURL is the local Canvas from core's `make canvas`, by its compose
+// service name.
+const devCanvasURL = "http://canvas"
+
 // SeedDev fills a local database with sample Provider Platforms data for core's
 // residents: the local Canvas from core's `make canvas`, its courses, and a
 // year of activity, outcomes and milestones. It moved from core's dev seeder
 // (`make seed`), which runs it after adding core's facilities and users. A
-// failed run adds nothing.
+// failed run adds nothing, and a database that already has the local Canvas is
+// left alone, so `make seed` can run again.
 func SeedDev(ctx context.Context, db *gorm.DB) error {
-	if err := seedDev(ctx, db, time.Now()); err != nil {
-		return err
-	}
-	log.Info("Seeded the sample Provider Platforms data")
-	return nil
+	return seedDev(ctx, db, time.Now())
 }
 
 func seedDev(ctx context.Context, db *gorm.DB, now time.Time) error {
@@ -41,12 +42,20 @@ func seedDev(ctx context.Context, db *gorm.DB, now time.Time) error {
 		if len(residents) == 0 {
 			return errors.New("no residents: run core's seeder first")
 		}
+		var seeded int64
+		if err := tx.Model(&ProviderPlatform{}).Where("base_url = ?", devCanvasURL).Count(&seeded).Error; err != nil {
+			return fmt.Errorf("look for the local Canvas: %w", err)
+		}
+		if seeded > 0 {
+			log.Info("The sample Provider Platforms data is already there")
+			return nil
+		}
 		// base_url is the compose service name, not 127.0.0.1:3001, because the
 		// calls come from inside the containers. The access key is minted per
 		// machine, so it still has to be pasted in by hand.
 		canvas := ProviderPlatform{
 			Name:      "Canvas",
-			BaseUrl:   "http://canvas",
+			BaseUrl:   devCanvasURL,
 			AccountID: "1",
 			Type:      CanvasOSS,
 			State:     Enabled,
@@ -72,6 +81,7 @@ func seedDev(ctx context.Context, db *gorm.DB, now time.Time) error {
 				}
 			}
 		}
+		log.Info("Seeded the sample Provider Platforms data")
 		return nil
 	})
 }

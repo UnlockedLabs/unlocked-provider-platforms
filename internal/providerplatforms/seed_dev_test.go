@@ -56,4 +56,8 @@ func TestSeedDev(t *testing.T) {
 	assert.Equal(t, int64(10), outcomes+milestones, "one outcome or milestone per course")
 	require.NoError(t, db.Model(&Activity{}).Count(&count).Error)
 	assert.Equal(t, int64(10*292), count, "activity on four days in five for a year, per course")
+
+	require.NoError(t, seedDev(ctx, db, time.Now()), "a second run skips the seed instead of failing make seed")
+	require.NoError(t, db.Model(&Course{}).Count(&count).Error)
+	assert.Equal(t, int64(10), count, "a second run adds nothing")
 }
