@@ -12,6 +12,11 @@ One binary, one image:
   first one moves tables core created out of `public`.
 - `app serve` runs the API and the job scheduler.
 - `app worker` runs the LMS jobs and serves the provider user lists on `:8081`.
+- `app seed-dev` (local only, `APP_ENV=dev`) adds the local Canvas from core's
+  `make canvas`, its courses, and a year of activity, outcomes and milestones
+  for core's residents. Core's `make seed` runs it.
+- `app migrate-reset` (local only, `APP_ENV=dev`) rolls back the migrations.
+  Core's `make migrate-fresh` runs it before resetting core's own.
 
 Core stays the public edge. It checks the session, role, feature flag and
 facility, then proxies the module's `/api` routes here with the service token
@@ -44,7 +49,7 @@ Settings, all from the environment:
 | `PATH_PREFIX` | serve | Path every `/api` route lives under (default none). `/internal/v1/` stays at the root |
 | `PROVIDER_PLATFORMS_TOKEN` | serve | The site's secret core and this service call each other with, sent as `Authorization: Bearer <token>`. Required: an empty token rejects every call |
 | `CORE_URL` | serve | Where core's `/internal/v1/core/` endpoints are, such as `http://server:8080`. Required |
-| `APP_ENV` | serve | `dev` skips the run at start of the LMS jobs |
+| `APP_ENV` | serve, seed-dev, migrate-reset | `dev` skips the run at start of the LMS jobs, and is required by seed-dev and migrate-reset |
 | `LOG_LEVEL` | all | `debug`, `info`, `warn`, `error` and the other logrus levels (default `info`). Logs are JSON like core's; a logging redo is tracked in EN-158 |
 | `APP_DSN`, or `DB_HOST` `DB_PORT` `DB_USER` `DB_PASSWORD` `DB_NAME` | all | The Postgres database |
 | `DB_SSLMODE` | all | TLS mode when the DSN is built from `DB_*` (default `prefer`; core uses `allow`) |

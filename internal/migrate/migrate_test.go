@@ -70,3 +70,21 @@ func TestPendingReportsAnUnreadableLedger(t *testing.T) {
 		t.Fatalf("Pending() = %v, nil, want the query error: a down database is not a pending migration", pending)
 	}
 }
+
+func TestReset(t *testing.T) {
+	ctx := context.Background()
+	db := open(t)
+	if err := Up(ctx, db, goose.DialectSQLite3, migrations); err != nil {
+		t.Fatal(err)
+	}
+	if err := Reset(ctx, db, goose.DialectSQLite3, migrations); err != nil {
+		t.Fatalf("Reset() error = %v", err)
+	}
+	if pending, err := Pending(ctx, db, goose.DialectSQLite3, migrations); err != nil || !pending {
+		t.Fatalf("Pending() after Reset = %v, %v, want true", pending, err)
+	}
+	var n int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE name IN ('one', 'two')`).Scan(&n); err != nil || n != 0 {
+		t.Fatalf("%d of the migrated tables remain, %v, want none", n, err)
+	}
+}

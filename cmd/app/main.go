@@ -1,7 +1,8 @@
 // Command app is Provider Platforms' one binary: "app serve" runs the API and
 // the job scheduler, "app worker" runs the LMS jobs, and "app migrate"
-// applies the database migrations. Serve and worker stop cleanly on SIGINT or
-// SIGTERM.
+// applies the database migrations. For a local database, "app seed-dev" adds
+// sample data and "app migrate-reset" rolls back the migrations. Serve and
+// worker stop cleanly on SIGINT or SIGTERM.
 package main
 
 import (
@@ -17,7 +18,7 @@ import (
 	"github.com/UnlockedLabs/unlocked-provider-platforms/internal/server"
 )
 
-const usage = "usage: app serve | app worker | app migrate"
+const usage = "usage: app serve | app worker | app migrate | app seed-dev | app migrate-reset"
 
 func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -46,6 +47,10 @@ func run(ctx context.Context, args []string) error {
 		return app.Work(ctx)
 	case "migrate":
 		return app.Migrate(ctx)
+	case "seed-dev":
+		return app.SeedDev(ctx)
+	case "migrate-reset":
+		return app.MigrateReset(ctx)
 	default:
 		return fmt.Errorf("unknown command %q: %s", args[0], usage)
 	}

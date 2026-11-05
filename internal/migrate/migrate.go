@@ -33,6 +33,19 @@ func Up(ctx context.Context, db *sql.DB, dialect goose.Dialect, fsys fs.FS) erro
 	return nil
 }
 
+// Reset rolls back every migration, for core's `make migrate-fresh`, which
+// runs it before resetting core's own.
+func Reset(ctx context.Context, db *sql.DB, dialect goose.Dialect, fsys fs.FS) error {
+	p, err := provider(db, dialect, fsys)
+	if err != nil {
+		return err
+	}
+	if _, err := p.DownTo(ctx, 0); err != nil {
+		return fmt.Errorf("migrate reset: %w", err)
+	}
+	return nil
+}
+
 // Pending reports whether fsys has a migration the ledger doesn't record as
 // applied. It only reads, so a process that doesn't migrate can use it to wait
 // for the one that does. A ledger that doesn't exist yet counts as pending; any other read error is

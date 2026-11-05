@@ -28,6 +28,18 @@ func TestRun(t *testing.T) {
 			wantErr: "CORE_URL",
 		},
 		{
+			name:    "seed-dev runs only in dev",
+			args:    []string{"seed-dev"},
+			env:     map[string]string{"APP_ENV": "production"},
+			wantErr: "APP_ENV=dev",
+		},
+		{
+			name:    "migrate-reset runs only in dev",
+			args:    []string{"migrate-reset"},
+			env:     map[string]string{"APP_ENV": "production"},
+			wantErr: "APP_ENV=dev",
+		},
+		{
 			name:    "migrate connects to the database",
 			args:    []string{"migrate"},
 			env:     map[string]string{"APP_DSN": "host=127.0.0.1 port=1 user=x dbname=x sslmode=disable connect_timeout=1"},

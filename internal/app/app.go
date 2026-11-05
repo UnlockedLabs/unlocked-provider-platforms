@@ -1,5 +1,5 @@
-// Package app wires Provider Platforms' three commands: migrate, serve and
-// worker.
+// Package app wires Provider Platforms' commands: migrate, serve and worker,
+// and for a local database seed-dev and migrate-reset.
 package app
 
 import (
@@ -50,6 +50,42 @@ func Migrate(ctx context.Context) error {
 		return err
 	}
 	slog.Info("migrated", "ledger", migrate.Ledger)
+	return nil
+}
+
+// MigrateReset rolls back the migrations, for core's `make migrate-fresh`. It
+// runs only with APP_ENV=dev, so it can never touch a real site.
+func MigrateReset(ctx context.Context) error {
+	if err := requireDev("migrate-reset rolls back the migrations"); err != nil {
+		return err
+	}
+	db, err := database.Open()
+	if err != nil {
+		return fmt.Errorf("open database: %w", err)
+	}
+	defer func() { _ = db.Close() }()
+	return migrate.Reset(ctx, db, goose.DialectPostgres, providerplatforms.Module{}.Migrations())
+}
+
+// SeedDev adds sample data for core's dev residents, for core's `make seed`.
+// It runs only with APP_ENV=dev, so it can never add sample data to a real
+// site.
+func SeedDev(ctx context.Context) error {
+	if err := requireDev("seed-dev adds sample data"); err != nil {
+		return err
+	}
+	db, sqlDB, err := database.OpenAs(providerplatforms.Module{}.Schema())
+	if err != nil {
+		return err
+	}
+	defer func() { _ = sqlDB.Close() }()
+	return providerplatforms.SeedDev(ctx, db)
+}
+
+func requireDev(what string) error {
+	if os.Getenv("APP_ENV") != "dev" {
+		return fmt.Errorf("%s, so it runs only with APP_ENV=dev", what)
+	}
 	return nil
 }
 
