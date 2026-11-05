@@ -1,6 +1,7 @@
 package providerplatforms
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -23,6 +24,12 @@ func TestSeedDev(t *testing.T) {
 
 	require.NoError(t, db.Exec(`INSERT INTO users (id, username, role) VALUES (1, 'admin', 'system_admin'), (2, 'jdoe', 'student'), (3, 'gone', 'student')`).Error)
 	require.NoError(t, db.Exec(`UPDATE users SET deleted_at = CURRENT_TIMESTAMP WHERE id = 3`).Error)
+	// Postgres's unique index on enrollments' external IDs, which a seed with
+	// core's 30 residents has to respect.
+	require.NoError(t, db.Exec(`CREATE UNIQUE INDEX idx_user_enrollments_external_id ON user_enrollments (external_id, course_id)`).Error)
+	for i := 4; i < 34; i++ {
+		require.NoError(t, db.Exec(`INSERT INTO users (id, username, role) VALUES (?, ?, 'student')`, i, fmt.Sprintf("res%d", i)).Error)
+	}
 
 	require.NoError(t, db.Migrator().RenameTable("outcomes", "outcomes_away"))
 	require.NoError(t, db.Migrator().RenameTable("milestones", "milestones_away"))
@@ -47,15 +54,16 @@ func TestSeedDev(t *testing.T) {
 	}
 
 	var enrolled []uint
-	require.NoError(t, db.Model(&UserEnrollment{}).Distinct().Pluck("user_id", &enrolled).Error)
-	assert.Equal(t, []uint{2}, enrolled, "only the resident who isn't deleted")
+	require.NoError(t, db.Model(&UserEnrollment{}).Distinct().Order("user_id").Pluck("user_id", &enrolled).Error)
+	require.Len(t, enrolled, 31, "every resident but the deleted one")
+	assert.NotContains(t, enrolled, uint(3), "not the deleted resident")
 
 	var outcomes, milestones int64
 	require.NoError(t, db.Model(&Outcome{}).Count(&outcomes).Error)
 	require.NoError(t, db.Model(&Milestone{}).Count(&milestones).Error)
-	assert.Equal(t, int64(10), outcomes+milestones, "one outcome or milestone per course")
+	assert.Equal(t, int64(31*10), outcomes+milestones, "one outcome or milestone per resident and course")
 	require.NoError(t, db.Model(&Activity{}).Count(&count).Error)
-	assert.Equal(t, int64(10*292), count, "activity on four days in five for a year, per course")
+	assert.Equal(t, int64(31*10*292), count, "activity on four days in five for a year, per resident and course")
 
 	require.NoError(t, seedDev(ctx, db, time.Now()), "a second run skips the seed instead of failing make seed")
 	require.NoError(t, db.Model(&Course{}).Count(&count).Error)

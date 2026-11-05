@@ -95,7 +95,7 @@ var (
 // in five over the last year, and either an outcome (40%) or an open
 // milestone.
 func seedResidentCourse(tx *gorm.DB, userID uint, course Course, now time.Time) error {
-	externalID := strconv.Itoa(rand.Intn(1000))
+	externalID := fmt.Sprintf("seed-%d-%d", userID, course.ID)
 	enrollment := UserEnrollment{CourseID: course.ID, UserID: userID, ExternalID: &externalID, CreatedAt: &course.CreatedAt}
 	if err := tx.Create(&enrollment).Error; err != nil {
 		return fmt.Errorf("enroll user %d in course %d: %w", userID, course.ID, err)
