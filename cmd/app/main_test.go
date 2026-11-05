@@ -18,13 +18,13 @@ func TestRun(t *testing.T) {
 		{
 			name:    "serve needs the service token",
 			args:    []string{"serve"},
-			env:     map[string]string{"SERVICE_TOKEN": "", "CORE_URL": "http://core"},
-			wantErr: "SERVICE_TOKEN",
+			env:     map[string]string{"PROVIDER_PLATFORMS_TOKEN": "", "CORE_URL": "http://core"},
+			wantErr: "PROVIDER_PLATFORMS_TOKEN",
 		},
 		{
 			name:    "serve needs core's address",
 			args:    []string{"serve"},
-			env:     map[string]string{"SERVICE_TOKEN": "t", "CORE_URL": ""},
+			env:     map[string]string{"PROVIDER_PLATFORMS_TOKEN": "t", "CORE_URL": ""},
 			wantErr: "CORE_URL",
 		},
 		{

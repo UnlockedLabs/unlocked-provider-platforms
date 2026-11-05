@@ -26,7 +26,7 @@ internal one: core reaches it at the service's own address.
 Needs Go 1.26 and Docker, and a database that already has core's schema.
 
 ```sh
-export SERVICE_TOKEN=local-token CORE_URL=http://127.0.0.1:9090   # serve needs both
+export PROVIDER_PLATFORMS_TOKEN=local-token CORE_URL=http://127.0.0.1:9090   # serve needs both
 make run      # API on :8080
 make worker   # the worker
 make test     # go test -race
@@ -42,7 +42,7 @@ Settings, all from the environment:
 |---|---|---|
 | `ADDR` | serve | Where the API listens (default `:8080`) |
 | `PATH_PREFIX` | serve | Path every `/api` route lives under (default none). `/internal/v1/` stays at the root |
-| `SERVICE_TOKEN` | serve | The shared token, sent as `Authorization: Bearer <token>`. Required: an empty token rejects every call |
+| `PROVIDER_PLATFORMS_TOKEN` | serve | The site's secret core and this service call each other with, sent as `Authorization: Bearer <token>`. Required: an empty token rejects every call |
 | `CORE_URL` | serve | Where core's `/internal/v1/core/` endpoints are, such as `http://server:8080`. Required |
 | `APP_ENV` | serve | `dev` skips the run at start of the LMS jobs |
 | `LOG_LEVEL` | all | `debug`, `info`, `warn`, `error` and the other logrus levels (default `info`). Logs are JSON like core's; a logging redo is tracked in EN-158 |

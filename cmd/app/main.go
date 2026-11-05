@@ -39,7 +39,7 @@ func run(ctx context.Context, args []string) error {
 			Addr:       envOr("ADDR", ":8080"),
 			PathPrefix: os.Getenv("PATH_PREFIX"),
 			Version:    server.VersionFromEnv(),
-			Token:      os.Getenv("SERVICE_TOKEN"),
+			Token:      os.Getenv("PROVIDER_PLATFORMS_TOKEN"),
 			CoreURL:    os.Getenv("CORE_URL"),
 		})
 	case "worker":

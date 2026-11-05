@@ -58,7 +58,7 @@ func Migrate(ctx context.Context) error {
 // /internal/v1/provider-platforms/.
 func Serve(ctx context.Context, cfg ServeConfig) error {
 	if cfg.Token == "" {
-		return errors.New("SERVICE_TOKEN is not set")
+		return errors.New("PROVIDER_PLATFORMS_TOKEN is not set")
 	}
 	if cfg.CoreURL == "" {
 		return errors.New("CORE_URL is not set")
