@@ -299,11 +299,6 @@ func (s *store) getCourses(args *queryContext) ([]Course, error) {
 
 func (s *store) getOutcomesForUser(args *queryContext, outcomeType OutcomeType) ([]Outcome, error) {
 	var outcomes []Outcome
-	fields := []string{"created_at", "type"}
-	if !slices.Contains(fields, args.OrderBy) {
-		args.OrderBy = "created_at"
-	}
-
 	query := s.db.WithContext(args.Ctx).Model(&Outcome{}).Where("user_id = ?", args.UserID)
 
 	if outcomeType != "" {
@@ -313,7 +308,7 @@ func (s *store) getOutcomesForUser(args *queryContext, outcomeType OutcomeType) 
 	if err := query.Count(&args.Total).Error; err != nil {
 		return nil, newGetRecordsDBError(err, "outcomes")
 	}
-	return outcomes, query.Order(args.OrderClause("outcomes.created_at DESC")).Offset(args.CalcOffset()).Limit(args.PerPage).Find(&outcomes).Error
+	return outcomes, query.Order(args.OrderClause("outcomes.created_at DESC", "created_at", "type")).Offset(args.CalcOffset()).Limit(args.PerPage).Find(&outcomes).Error
 }
 
 func (s *store) getDailyActivityByUserID(userID int, startDate time.Time, endDate time.Time) ([]DailyActivity, error) {
