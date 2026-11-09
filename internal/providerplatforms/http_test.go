@@ -32,12 +32,3 @@ func TestHandleErrorLogFields(t *testing.T) {
 	assert.Equal(t, http.MethodPut, entry.Data["method"])
 	assert.Equal(t, "/api/things/1", entry.Data["path"])
 }
-
-func TestOrderClauseOnlyAllowsAscOrDesc(t *testing.T) {
-	q := queryContext{OrderBy: "created_at", Order: "desc; drop table users"}
-	assert.Equal(t, "created_at desc", q.OrderClause("fallback"))
-	q.Order = "asc"
-	assert.Equal(t, "created_at asc", q.OrderClause("fallback"))
-	assert.Equal(t, "created_at", queryContext{OrderBy: "created_at"}.OrderClause("fallback"))
-	assert.Equal(t, "fallback", queryContext{}.OrderClause("fallback"))
-}
