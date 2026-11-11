@@ -1,6 +1,6 @@
 module github.com/UnlockedLabs/unlocked-provider-platforms
 
-go 1.26.10
+go 1.26.11
 
 require (
 	github.com/UnlockedLabs/unlocked-contracts v0.4.0
