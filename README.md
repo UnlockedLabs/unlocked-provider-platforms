@@ -70,7 +70,9 @@ GOWORK=off go mod tidy
 
 1. Merge PRs to `main` with conventional-commit titles (`feat: ...`,
    `fix: ...`). Each merge pushes `:sha-<short>` to ECR, then moves `:latest`
-   to it if it's still the tip of `main`.
+   to it if it's still the tip of `main`. It also sets staging's
+   `images.<product>.tag` to `sha-<short>` in `unlocked-platform`, which
+   deploys staging.
 2. release-please keeps a `chore(main): release X.Y.Z` PR open with the
    changelog. A `feat` bumps the minor version, a `fix` the patch (before
    1.0.0, a breaking change bumps the minor version).
@@ -87,8 +89,8 @@ The templates live in `unlocked-platform`, behind `components.providerPlatforms`
 (EN-206 part two): the `serve` Deployment, with its readiness probe on
 `/api/healthcheck`, and Service; the `worker` Deployment; and a migrate Job
 that runs after core's. There are no ingress paths: core proxies the routes.
-Pin the release in each site file and deploy through the deploy workflow. Only
-staging may use `latest`.
+Pin the release in each site file except staging, which follows `main` (see
+How to release), and deploy through the deploy workflow.
 
 ## Vulnerability alerts
 
